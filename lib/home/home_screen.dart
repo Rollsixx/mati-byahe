@@ -10,6 +10,7 @@ import 'widgets/location_selector.dart';
 import 'widgets/action_grid_widget.dart';
 import 'widgets/fare_display.dart';
 import 'widgets/confirmation_dialog.dart';
+import 'widgets/active_trip_widget.dart';
 import 'home_controller.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -127,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                             Text(
-                              "Your active trip is now being tracked.",
+                              "Safe travels! Track your fare below.",
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 12,
@@ -285,75 +286,24 @@ class _HomeScreenState extends State<HomeScreen>
                 const ActionGridWidget(),
                 const SizedBox(height: 10),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
                   child: _persistedFare != null
-                      ? _buildActiveTripView()
+                      ? ActiveTripWidget(
+                          fare: _persistedFare!,
+                          onArrived: _confirmArrival,
+                          onCancel: _confirmChangeRoute,
+                        )
                       : LocationSelector(
                           email: widget.email,
                           onFareCalculated: _handleFareUpdate,
                         ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 30),
               ],
             ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildActiveTripView() {
-    return Card(
-      elevation: 8,
-      shadowColor: AppColors.primaryBlue.withOpacity(0.2),
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      "ACTIVE TRIP",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13,
-                        color: AppColors.primaryBlue,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  onPressed: _confirmChangeRoute,
-                  icon: const Icon(
-                    Icons.edit_location_alt_outlined,
-                    color: Colors.grey,
-                    size: 22,
-                  ),
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-            const Divider(height: 30, thickness: 1),
-            FareDisplay(fare: _persistedFare!, onArrived: _confirmArrival),
-          ],
-        ),
-      ),
     );
   }
 }
