@@ -20,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final SignupRepository _repository = SignupRepository();
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  bool _isLoading = false;
   String _userRole = 'Passenger';
 
   @override
@@ -102,47 +103,65 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  PrimaryButton(
-                    label: 'Register Account',
-                    onPressed: () async {
-                      final email = _emailController.text.trim();
-                      final password = _passwordController.text;
-                      if (password != _confirmPasswordController.text) {
-                        _showNotification(
-                          "Passwords do not match",
-                          isError: true,
-                        );
-                        return;
-                      }
-                      try {
-                        await _repository.registerUser(
-                          email,
-                          password,
-                          _userRole,
-                        );
-                        if (!mounted) return;
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                VerificationScreen(email: email),
-                          ),
-                        );
-                      } catch (e) {
-                        if (!mounted) return;
-                        String msg = e.toString().replaceAll("Exception: ", "");
-                        bool isOfflineSuccess = msg.contains("Offline");
+                  _isLoading
+                      ? const CircularProgressIndicator(
+                          color: AppColors.primaryBlue,
+                        )
+                      : PrimaryButton(
+                          label: 'Register Account',
+                          onPressed: () async {
+                            final email = _emailController.text.trim();
+                            final password = _passwordController.text;
 
-                        _showNotification(msg, isError: !isOfflineSuccess);
+                            if (password != _confirmPasswordController.text) {
+                              _showNotification(
+                                "Passwords do not match",
+                                isError: true,
+                              );
+                              return;
+                            }
 
-                        if (isOfflineSuccess) {
-                          Future.delayed(const Duration(seconds: 2), () {
-                            if (mounted) Navigator.pop(context);
-                          });
-                        }
-                      }
-                    },
-                  ),
+                            setState(() => _isLoading = true);
+
+                            try {
+                              await _repository.registerUser(
+                                email,
+                                password,
+                                _userRole,
+                              );
+
+                              if (!mounted) return;
+
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      VerificationScreen(email: email),
+                                ),
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              setState(() => _isLoading = false);
+
+                              String msg = e.toString().replaceAll(
+                                "Exception: ",
+                                "",
+                              );
+                              bool isOfflineSuccess = msg.contains("Offline");
+
+                              _showNotification(
+                                msg,
+                                isError: !isOfflineSuccess,
+                              );
+
+                              if (isOfflineSuccess) {
+                                Future.delayed(const Duration(seconds: 2), () {
+                                  if (mounted) Navigator.pop(context);
+                                });
+                              }
+                            }
+                          },
+                        ),
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
