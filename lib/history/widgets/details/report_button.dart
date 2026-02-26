@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../components/confirmation_dialog.dart';
-import '../../report_screen.dart';
+import '../../../report/report_screen.dart';
 
 class ReportButton extends StatelessWidget {
   final Map<String, dynamic> trip;
