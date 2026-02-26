@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constant/app_colors.dart';
 import '../core/database/local_database.dart';
+import '../core/services/trip_service.dart';
 import 'widgets/history_header.dart';
 import 'widgets/history_tile.dart';
 
@@ -13,8 +15,24 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
+  final TripService _tripService = TripService();
+  final _supabase = Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    _triggerSync();
+  }
+
+  Future<void> _triggerSync() async {
+    await _tripService.syncTrips();
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
+    final String? userId = _supabase.auth.currentUser?.id;
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -35,33 +53,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
           children: [
             const HistoryHeader(),
             Expanded(
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: LocalDatabase().getTrips(widget.email),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+              child: userId == null
+                  ? _buildEmptyState()
+                  : FutureBuilder<List<Map<String, dynamic>>>(
+                      future: LocalDatabase().getTripsByPassengerId(userId),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                                ConnectionState.waiting &&
+                            !snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
 
-                  if (snapshot.hasError) {
-                    return Center(child: Text("Error: ${snapshot.error}"));
-                  }
+                        if (snapshot.hasError) {
+                          return Center(child: Text("Error loading history"));
+                        }
 
-                  final trips = snapshot.data ?? [];
+                        final trips = snapshot.data ?? [];
 
-                  if (trips.isEmpty) {
-                    return _buildEmptyState();
-                  }
+                        if (trips.isEmpty) {
+                          return _buildEmptyState();
+                        }
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 100),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: trips.length,
-                    itemBuilder: (context, index) {
-                      return HistoryTile(trip: trips[index]);
-                    },
-                  );
-                },
-              ),
+                        return RefreshIndicator(
+                          onRefresh: _triggerSync,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.only(bottom: 100),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: trips.length,
+                            itemBuilder: (context, index) {
+                              return HistoryTile(trip: trips[index]);
+                            },
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

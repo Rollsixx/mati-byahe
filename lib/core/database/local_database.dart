@@ -128,6 +128,18 @@ class LocalDatabase {
     );
   }
 
+  Future<List<Map<String, dynamic>>> getTripsByPassengerId(
+    String passengerId,
+  ) async {
+    final db = await database;
+    return await db.query(
+      'trips',
+      where: 'passenger_id = ?',
+      whereArgs: [passengerId],
+      orderBy: 'date DESC',
+    );
+  }
+
   Future<Map<String, dynamic>?> getActiveFare(String email) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
