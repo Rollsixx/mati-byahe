@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/constant/app_colors.dart';
+import '../core/constant/app_colors.dart';
 
 class ConfirmationDialog extends StatelessWidget {
   final String title;
@@ -20,14 +20,15 @@ class ConfirmationDialog extends StatelessWidget {
     final bool isDestructive =
         confirmText.toLowerCase().contains('change') ||
         confirmText.toLowerCase().contains('cancel') ||
-        confirmText.toLowerCase().contains('delete');
+        confirmText.toLowerCase().contains('delete') ||
+        confirmText.toLowerCase().contains('report');
 
     return AlertDialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
       contentPadding: EdgeInsets.zero,
       insetPadding: const EdgeInsets.symmetric(horizontal: 15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
