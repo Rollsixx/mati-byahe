@@ -31,6 +31,7 @@ class HistoryTile extends StatelessWidget {
       onTap: onViewDetails,
       onLongPress: () => menuKey.currentState?.showButtonMenu(),
       child: Stack(
+        alignment: Alignment.center, // Helps align children in the stack
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -111,34 +112,35 @@ class HistoryTile extends StatelessWidget {
               ],
             ),
           ),
+
+          // Centered Watermark
           FutureBuilder<bool>(
             future: LocalDatabase().isTripReported(trip['uuid']),
             builder: (context, snapshot) {
               if (snapshot.data == true) {
-                return Positioned(
-                  right: 50,
-                  top: 15,
+                return IgnorePointer(
+                  // Makes sure the watermark doesn't block clicks
                   child: Transform.rotate(
-                    angle: -0.2,
+                    angle: -0.15, // Slight tilt for watermark look
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
+                        horizontal: 12,
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: Colors.redAccent.withOpacity(0.5),
-                          width: 1.5,
+                          color: Colors.redAccent.withOpacity(0.3),
+                          width: 2.0,
                         ),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         "REPORTED",
                         style: TextStyle(
-                          color: Colors.redAccent.withOpacity(0.5),
-                          fontSize: 10,
+                          color: Colors.redAccent.withOpacity(0.3),
+                          fontSize: 14, // Slightly larger for center visibility
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
+                          letterSpacing: 2,
                         ),
                       ),
                     ),

@@ -37,11 +37,10 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   }
 
   void _refreshData() {
-    if (mounted) {
-      setState(() {
-        _historyFuture = _loadHistory();
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _historyFuture = _loadHistory();
+    });
   }
 
   Future<void> _triggerSync() async {
@@ -118,17 +117,21 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                           onDelete: () {
                             showDialog(
                               context: context,
-                              builder: (context) => ConfirmationDialog(
-                                title: "Delete Report",
+                              barrierDismissible: false,
+                              builder: (dialogContext) => ConfirmationDialog(
+                                title: "Unreport Trip",
                                 content:
-                                    "Are you sure you want to delete this report record?",
-                                confirmText: "Delete",
+                                    "Are you sure you want to unreport this trip? This will remove it from your visible history.",
+                                confirmText: "Unreport",
                                 onConfirm: () async {
-                                  await _reportService.deleteReport(
+                                  await _localDb.markReportAsDeleted(
                                     report['id'],
-                                    report['trip_uuid'],
                                   );
-                                  _triggerSync();
+                                  if (mounted) {
+                                    final nav = Navigator.of(dialogContext);
+                                    if (nav.canPop()) nav.pop();
+                                    _refreshData();
+                                  }
                                 },
                               ),
                             );

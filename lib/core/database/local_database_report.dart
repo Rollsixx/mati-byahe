@@ -1,6 +1,5 @@
 part of 'local_database.dart';
 
-// Report-related database operations.
 extension ReportDatabase on LocalDatabase {
   Future<void> saveReport({
     required String tripUuid,
@@ -59,7 +58,7 @@ extension ReportDatabase on LocalDatabase {
     final db = await database;
     final result = await db.query(
       'reports',
-      where: 'trip_uuid = ? AND is_deleted = 0',
+      where: 'trip_uuid = ?',
       whereArgs: [tripUuid],
     );
     return result.isNotEmpty;

@@ -97,9 +97,7 @@ class ReportHistoryTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(
-                  height: 20,
-                ), // Matches fare text height in HistoryTile
+                const SizedBox(height: 20),
                 Theme(
                   data: Theme.of(context).copyWith(
                     useMaterial3: true,
@@ -117,13 +115,13 @@ class ReportHistoryTile extends StatelessWidget {
                     color: Colors.white,
                     surfaceTintColor: Colors.white,
                     icon: const Icon(
-                      Icons.more_horiz, // Changed to match HistoryTile
+                      Icons.more_horiz,
                       color: AppColors.textGrey,
                       size: 20,
                     ),
                     onSelected: (value) {
                       if (value == 'view') onViewDetails?.call();
-                      if (value == 'delete') onDelete?.call();
+                      if (value == 'unreport') onDelete?.call();
                     },
                     itemBuilder: (context) => [
                       _buildMenuItem(
@@ -133,9 +131,9 @@ class ReportHistoryTile extends StatelessWidget {
                         color: AppColors.darkNavy,
                       ),
                       _buildMenuItem(
-                        value: 'delete',
-                        icon: Icons.delete_outline_rounded,
-                        label: 'DELETE',
+                        value: 'unreport',
+                        icon: Icons.undo_rounded,
+                        label: 'UNREPORT',
                         color: Colors.redAccent,
                       ),
                     ],
