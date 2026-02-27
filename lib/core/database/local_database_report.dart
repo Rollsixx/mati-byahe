@@ -54,4 +54,14 @@ extension ReportDatabase on LocalDatabase {
     final db = await database;
     await db.delete('reports');
   }
+
+  Future<bool> isTripReported(String tripUuid) async {
+    final db = await database;
+    final result = await db.query(
+      'reports',
+      where: 'trip_uuid = ? AND is_deleted = 0',
+      whereArgs: [tripUuid],
+    );
+    return result.isNotEmpty;
+  }
 }

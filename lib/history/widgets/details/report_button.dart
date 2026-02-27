@@ -1,33 +1,62 @@
 import 'package:flutter/material.dart';
 import '../../../components/confirmation_dialog.dart';
 import '../../../report/report_screen.dart';
+import '../../../core/database/local_database.dart';
 
 class ReportButton extends StatelessWidget {
   final Map<String, dynamic> trip;
 
   const ReportButton({super.key, required this.trip});
 
-  void _navigateToReport(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
-        reverseTransitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            ReportScreen(trip: trip),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.easeInOut;
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: LocalDatabase().isTripReported(trip['uuid']),
+      builder: (context, snapshot) {
+        final bool isReported = snapshot.data ?? false;
 
-          var tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: curve));
-          var offsetAnimation = animation.drive(tween);
-
-          return SlideTransition(position: offsetAnimation, child: child);
-        },
-      ),
+        return Container(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 30),
+          color: Colors.transparent,
+          child: OutlinedButton(
+            onPressed: isReported ? null : () => _handleReportClick(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: isReported ? Colors.grey : Colors.redAccent,
+              backgroundColor: Colors.transparent,
+              side: BorderSide(
+                color: isReported
+                    ? Colors.grey.withOpacity(0.3)
+                    : Colors.redAccent,
+                width: 1.2,
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isReported
+                      ? Icons.check_circle_outline
+                      : Icons.warning_amber_rounded,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isReported ? "TRIP ALREADY REPORTED" : "REPORT THIS TRIP",
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -36,49 +65,16 @@ class ReportButton extends StatelessWidget {
       context: context,
       builder: (context) => ConfirmationDialog(
         title: "Report Trip",
-        content:
-            "Are you sure you want to report this trip? This action will notify our support team to investigate the details.",
+        content: "Are you sure you want to report this trip?",
         confirmText: "Report",
-        onConfirm: () async {
-          _navigateToReport(context);
-        },
+        onConfirm: () => _navigateToReport(context),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 30),
-      color: Colors.transparent,
-      child: OutlinedButton(
-        onPressed: () => _handleReportClick(context),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.redAccent,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          side: const BorderSide(color: Colors.redAccent, width: 1.2),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.warning_amber_rounded, size: 18),
-            SizedBox(width: 8),
-            Text(
-              "REPORT THIS TRIP",
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  void _navigateToReport(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => ReportScreen(trip: trip)));
   }
 }
