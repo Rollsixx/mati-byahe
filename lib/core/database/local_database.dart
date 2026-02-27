@@ -12,7 +12,6 @@ part 'local_database_user.dart';
 class LocalDatabase {
   static Database? _database;
 
-  /// Singleton-like getter that opens the database only once.
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB();
@@ -24,10 +23,10 @@ class LocalDatabase {
     String pathName = join(dbPath, 'byahe.db');
     return await openDatabase(
       pathName,
-      version: 19,
+      version: 20,
       onCreate: (db, version) async => await _createTables(db),
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 19) {
+        if (oldVersion < 20) {
           await db.execute('DROP TABLE IF EXISTS reports');
           await _createReportsTable(db);
         }
@@ -77,7 +76,6 @@ class LocalDatabase {
       )
     ''');
 
-    // reports table creation is reused during upgrades as well
     await _createReportsTable(db);
   }
 
@@ -87,6 +85,7 @@ class LocalDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         trip_uuid TEXT UNIQUE,
         passenger_id TEXT,
+        driver_id TEXT,
         issue_type TEXT NOT NULL,
         description TEXT NOT NULL,
         evidence_url TEXT,

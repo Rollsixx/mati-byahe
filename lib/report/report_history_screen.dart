@@ -7,6 +7,7 @@ import 'widgets/report_history_header.dart';
 import 'widgets/report_history_tile.dart';
 import 'widgets/report_history_empty_state.dart';
 import '../components/confirmation_dialog.dart';
+import 'report_details_screen.dart';
 
 class ReportHistoryScreen extends StatefulWidget {
   const ReportHistoryScreen({super.key});
@@ -113,7 +114,15 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                         final report = snapshot.data![index];
                         return ReportHistoryTile(
                           report: report,
-                          onViewDetails: () {},
+                          onViewDetails: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ReportDetailsScreen(report: report),
+                              ),
+                            );
+                          },
                           onDelete: () {
                             showDialog(
                               context: context,

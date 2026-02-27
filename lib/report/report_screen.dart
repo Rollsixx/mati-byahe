@@ -146,6 +146,7 @@ class _ReportScreenState extends State<ReportScreen> {
       await _localDb.saveReport(
         tripUuid: widget.trip['uuid'],
         passengerId: widget.trip['passenger_id'].toString(),
+        driverId: widget.trip['driver_id'].toString(),
         issueType: issueType,
         description: _detailsController.text,
         evidencePath: _proofFile?.path,

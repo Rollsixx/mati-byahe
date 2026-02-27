@@ -4,6 +4,7 @@ extension ReportDatabase on LocalDatabase {
   Future<void> saveReport({
     required String tripUuid,
     required String passengerId,
+    required String driverId,
     required String issueType,
     required String description,
     String? evidencePath,
@@ -12,6 +13,7 @@ extension ReportDatabase on LocalDatabase {
     await db.insert('reports', {
       'trip_uuid': tripUuid,
       'passenger_id': passengerId,
+      'driver_id': driverId,
       'issue_type': issueType,
       'description': description,
       'evidence_url': evidencePath,
