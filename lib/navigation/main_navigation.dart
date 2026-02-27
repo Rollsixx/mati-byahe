@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'widgets/passenger_nav_bar.dart';
 import 'widgets/driver_nav_bar.dart';
+import '../qrscanner/qr_scanner_view.dart';
 import 'navigation_screens.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -55,7 +56,20 @@ class _MainNavigationState extends State<MainNavigation>
           ? null
           : PassengerFloatingButton(
               animation: _floatingAnimation,
-              onTap: () => _onItemTapped(2),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => QrScannerView(
+                      onQrCodeDetected: (qr) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text('Scanned: $qr')));
+                      },
+                    ),
+                  ),
+                );
+              },
             ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: isDriver

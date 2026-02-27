@@ -18,7 +18,13 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint(
+      "Warning: .env file not found. Using environment variables or defaults: $e",
+    );
+  }
 
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL'] ?? '',
