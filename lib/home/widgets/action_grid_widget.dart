@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constant/app_colors.dart';
+import '../../qrscanner/qr_scanner_view.dart';
 
 class ActionGridWidget extends StatelessWidget {
   const ActionGridWidget({super.key});
@@ -11,36 +12,58 @@ class ActionGridWidget extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildItem(Icons.campaign_rounded, "Report"),
-          _buildItem(Icons.newspaper_rounded, "News"),
-          _buildItem(Icons.analytics_rounded, "Track"),
+          _buildItem(Icons.campaign_rounded, "Report", () {}),
+          _buildItem(Icons.newspaper_rounded, "News", () {}),
+          _buildItem(Icons.analytics_rounded, "Track", () {}),
+          _buildItem(Icons.qr_code_scanner_rounded, "Scan QR", () {
+            _openQrScanner(context);
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildItem(IconData icon, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.primaryBlue.withOpacity(0.08),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: AppColors.primaryBlue, size: 24),
+  void _openQrScanner(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QrScannerView(
+          onQrCodeDetected: (qrCode) {
+            // Handle the detected QR code here
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Scanned: $qrCode')));
+          },
         ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: AppColors.darkNavy,
+      ),
+    );
+  }
+
+  Widget _buildItem(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primaryBlue.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppColors.primaryBlue, size: 24),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppColors.darkNavy,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
