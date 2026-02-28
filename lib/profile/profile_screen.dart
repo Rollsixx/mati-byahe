@@ -8,6 +8,8 @@ import '../components/confirmation_dialog.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/profile_menu_item.dart';
 import 'edit_profile_screen.dart';
+import 'guide_screen.dart';
+import 'legal_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String email;
@@ -151,15 +153,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Column(
                           children: [
                             ProfileMenuItem(
-                              icon: Icons.help_outline_rounded,
-                              title: 'Help Center',
-                              onTap: () {},
+                              icon: Icons.auto_stories_rounded,
+                              title: 'App Guide',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        GuideScreen(role: widget.role),
+                                  ),
+                                );
+                              },
                             ),
                             _buildDivider(),
                             ProfileMenuItem(
                               icon: Icons.gavel_rounded,
                               title: 'Legal & Privacy',
-                              onTap: () {},
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const LegalScreen(),
+                                  ),
+                                );
+                              },
                             ),
                             _buildDivider(),
                             ProfileMenuItem(
