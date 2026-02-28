@@ -16,22 +16,93 @@ class _SetPinScreenState extends State<SetPinScreen> {
   final _supabase = Supabase.instance.client;
   final _localDb = LocalDatabase();
   final _syncService = SyncService();
-  String _pin = "";
-  final int _pinLength = 4;
+
+  String _inputPin = "";
+  String _storedPin = "";
+  String _firstNewPin = ""; // Holds the first entry of the new PIN
+
+  bool _isVerifyingExisting = false;
+  bool _hasVerifiedOld = false;
+  bool _isConfirmingNew = false; // True when user is re-entering the new PIN
+  bool _isLoading = true;
   bool _isSaving = false;
 
-  void _onKeyTap(String value) {
-    if (_pin.length < _pinLength && !_isSaving) {
-      setState(() => _pin += value);
+  @override
+  void initState() {
+    super.initState();
+    _checkInitialStatus();
+  }
+
+  Future<void> _checkInitialStatus() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+
+    final localData = await _localDb.getUserById(user.id);
+    _storedPin = localData?['login_pin'] ?? "";
+
+    if (_storedPin.isEmpty) {
+      final cloudData = await _supabase
+          .from('profiles')
+          .select('login_pin')
+          .eq('id', user.id)
+          .maybeSingle();
+      _storedPin = cloudData?['login_pin'] ?? "";
+      if (_storedPin.isNotEmpty)
+        await _localDb.updateLocalPin(user.id, _storedPin);
     }
-    if (_pin.length == _pinLength && !_isSaving) {
-      _showConfirmDialog();
+
+    setState(() {
+      _isVerifyingExisting = _storedPin.isNotEmpty;
+      _isLoading = false;
+    });
+  }
+
+  void _onKeyTap(String value) {
+    if (_inputPin.length < 4 && !_isSaving) {
+      setState(() => _inputPin += value);
+      if (_inputPin.length == 4) _handleStepCompletion();
     }
   }
 
-  void _onBackspace() {
-    if (_pin.isNotEmpty && !_isSaving) {
-      setState(() => _pin = _pin.substring(0, _pin.length - 1));
+  void _handleStepCompletion() {
+    if (_isVerifyingExisting && !_hasVerifiedOld) {
+      // Step 1: Verify Old PIN
+      if (_inputPin == _storedPin) {
+        setState(() {
+          _hasVerifiedOld = true;
+          _inputPin = "";
+        });
+        _showNotification("Identity confirmed. Now enter your new PIN.");
+      } else {
+        _showNotification(
+          "Incorrect current PIN. Please try again.",
+          isError: true,
+        );
+        setState(() => _inputPin = "");
+      }
+    } else if (!_isConfirmingNew) {
+      // Step 2: Enter New PIN for the first time
+      setState(() {
+        _firstNewPin = _inputPin;
+        _inputPin = "";
+        _isConfirmingNew = true;
+      });
+      _showNotification("Please re-enter your new PIN to confirm.");
+    } else {
+      // Step 3: Confirm New PIN
+      if (_inputPin == _firstNewPin) {
+        _showConfirmDialog();
+      } else {
+        _showNotification(
+          "PINs do not match. Let's try creating a new one again.",
+          isError: true,
+        );
+        setState(() {
+          _inputPin = "";
+          _firstNewPin = "";
+          _isConfirmingNew = false;
+        });
+      }
     }
   }
 
@@ -40,61 +111,54 @@ class _SetPinScreenState extends State<SetPinScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => ConfirmationDialog(
-        title: "Security Lock",
-        content:
-            "Are you sure you want to set this 4-digit PIN as your login credential?",
-        confirmText: "Set PIN",
-        onConfirm: _handleSavePin,
+        title: "Change PIN",
+        content: "Do you want to change your PIN to this new 4-digit code?",
+        confirmText: "Change PIN",
+        onConfirm: _finalizePinChange,
       ),
-    ).then((_) {
-      if (!_isSaving && _pin.length == _pinLength) {
-        setState(() => _pin = "");
-      }
-    });
+    ).then((_) => setState(() => _inputPin = ""));
   }
 
-  Future<void> _handleSavePin() async {
+  Future<void> _finalizePinChange() async {
     setState(() => _isSaving = true);
     final user = _supabase.auth.currentUser;
-
-    if (user == null) {
-      setState(() => _isSaving = false);
-      return;
-    }
+    if (user == null) return;
 
     try {
-      await _localDb.updateLocalPin(user.id, _pin);
+      await _localDb.updateLocalPin(user.id, _inputPin);
       await _syncService.syncOnStart();
-
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("PIN secured locally and synced successfully!"),
-            backgroundColor: AppColors.primaryBlue,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _showNotification("Success! Your new PIN is now active.");
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error: $e"),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        setState(() {
-          _pin = "";
-          _isSaving = false;
-        });
-      }
+      _showNotification(
+        "Error saving PIN. Check your connection.",
+        isError: true,
+      );
+      setState(() {
+        _isSaving = false;
+        _inputPin = "";
+      });
     }
+  }
+
+  void _showNotification(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.redAccent : AppColors.primaryBlue,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(15),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -111,56 +175,89 @@ class _SetPinScreenState extends State<SetPinScreen> {
         ),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 15),
-        child: Column(
-          children: [
-            const SizedBox(height: 60),
-            Text(
-              _isSaving ? "Securing PIN..." : "Enter a 4-digit PIN",
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.darkNavy,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "This PIN will be required to access your account.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 48),
-            if (_isSaving)
-              const CircularProgressIndicator(color: AppColors.primaryBlue)
-            else
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_pinLength, (index) {
-                  bool isFilled = index < _pin.length;
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 12),
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isFilled
-                          ? AppColors.primaryBlue
-                          : Colors.grey.withOpacity(0.2),
-                    ),
-                  );
-                }),
-              ),
-            const Spacer(),
-            Opacity(opacity: _isSaving ? 0.5 : 1.0, child: _buildNumPad()),
-            const SizedBox(height: 40),
-          ],
-        ),
+      body: Column(
+        children: [
+          const SizedBox(height: 40),
+          _buildFriendlyHeader(),
+          const SizedBox(height: 40),
+          _buildVisualDots(),
+          const Spacer(),
+          _buildKeypad(),
+          const SizedBox(height: 40),
+        ],
       ),
     );
   }
 
-  Widget _buildNumPad() {
+  Widget _buildFriendlyHeader() {
+    String heading = "Set a New PIN";
+    String description = "Create a 4-digit code to keep your account safe.";
+    IconData icon = Icons.lock_open_rounded;
+
+    if (_isVerifyingExisting && !_hasVerifiedOld) {
+      heading = "Verify It's You";
+      description = "Please enter your current PIN to make changes.";
+      icon = Icons.security_rounded;
+    } else if (_isConfirmingNew) {
+      heading = "Confirm New PIN";
+      description = "Please enter the new code one more time.";
+      icon = Icons.phonelink_lock_rounded;
+    } else if (_hasVerifiedOld || !_isVerifyingExisting) {
+      heading = "Choose New PIN";
+      description = "Enter the new 4-digit code you want to use.";
+      icon = Icons.published_with_changes;
+    }
+
+    return Column(
+      children: [
+        Icon(icon, size: 48, color: AppColors.primaryBlue),
+        const SizedBox(height: 20),
+        Text(
+          heading,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: AppColors.darkNavy,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Text(
+            description,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.blueGrey,
+              height: 1.5,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVisualDots() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(4, (index) {
+        bool isTyped = index < _inputPin.length;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isTyped
+                ? AppColors.primaryBlue
+                : Colors.grey.withOpacity(0.2),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildKeypad() {
     return Column(
       children: [
         for (var row in [
@@ -172,18 +269,26 @@ class _SetPinScreenState extends State<SetPinScreen> {
             padding: const EdgeInsets.only(bottom: 24),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: row.map((num) => _buildNumButton(num)).toList(),
+              children: row.map((n) => _buildKey(n)).toList(),
             ),
           ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             const SizedBox(width: 60),
-            _buildNumButton('0'),
+            _buildKey('0'),
             SizedBox(
               width: 60,
               child: IconButton(
-                onPressed: _onBackspace,
+                onPressed: () {
+                  if (_inputPin.isNotEmpty)
+                    setState(
+                      () => _inputPin = _inputPin.substring(
+                        0,
+                        _inputPin.length - 1,
+                      ),
+                    );
+                },
                 icon: const Icon(
                   Icons.backspace_outlined,
                   color: AppColors.darkNavy,
@@ -196,18 +301,18 @@ class _SetPinScreenState extends State<SetPinScreen> {
     );
   }
 
-  Widget _buildNumButton(String text) {
+  Widget _buildKey(String label) {
     return InkWell(
-      onTap: () => _onKeyTap(text),
+      onTap: () => _onKeyTap(label),
       borderRadius: BorderRadius.circular(50),
       child: Container(
         width: 60,
         height: 60,
         alignment: Alignment.center,
         child: Text(
-          text,
+          label,
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 26,
             fontWeight: FontWeight.bold,
             color: AppColors.darkNavy,
           ),
