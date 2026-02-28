@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constant/app_colors.dart';
+import '../core/database/local_database.dart';
+import '../core/database/sync_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String initialName;
@@ -19,26 +22,37 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  final LocalDatabase _localDb = LocalDatabase();
+  final SyncService _syncService = SyncService();
 
-  // Removed 'late' keyword and initialized immediately to avoid LateInitializationError
   late final TextEditingController _firstNameController;
   late final TextEditingController _middleNameController;
   late final TextEditingController _lastNameController;
-  late final TextEditingController _suffixController;
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
+
+  final List<String> _suffixes = ['', 'Jr.', 'Sr.', 'II', 'III', 'IV', 'V'];
+  String _selectedSuffix = '';
 
   @override
   void initState() {
     super.initState();
 
-    // Destructure logic
     List<String> parts = widget.initialName.trim().split(' ');
     String first = '';
     String last = '';
     String middle = '';
+    String foundSuffix = '';
 
     if (parts.isNotEmpty) {
+      for (var s in _suffixes) {
+        if (s.isNotEmpty && parts.last.toLowerCase() == s.toLowerCase()) {
+          foundSuffix = s;
+          parts.removeLast();
+          break;
+        }
+      }
+
       first = parts[0];
       if (parts.length > 1) {
         last = parts.last;
@@ -48,13 +62,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     }
 
-    // Initialize all controllers immediately
     _firstNameController = TextEditingController(text: first);
     _middleNameController = TextEditingController(text: middle);
     _lastNameController = TextEditingController(text: last);
-    _suffixController = TextEditingController(); // Optional field starts empty
     _emailController = TextEditingController(text: widget.initialEmail);
     _phoneController = TextEditingController(text: widget.initialPhone);
+    _selectedSuffix = foundSuffix;
   }
 
   @override
@@ -62,10 +75,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _firstNameController.dispose();
     _middleNameController.dispose();
     _lastNameController.dispose();
-    _suffixController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSave() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final String fullName = [
+      _firstNameController.text.trim(),
+      _middleNameController.text.trim(),
+      _lastNameController.text.trim(),
+      _selectedSuffix,
+    ].where((s) => s.isNotEmpty).join(' ');
+
+    final String phone = _phoneController.text.trim();
+    final String? userId = Supabase.instance.client.auth.currentUser?.id;
+
+    if (userId == null) return;
+
+    await _localDb.updateUserProfile(id: userId, name: fullName, phone: phone);
+    _syncService.syncOnStart();
+
+    if (mounted) {
+      Navigator.pop(context, true);
+    }
   }
 
   @override
@@ -95,7 +130,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        // Updated gutter to 15px as requested
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 24),
         child: Form(
           key: _formKey,
           child: Column(
@@ -114,26 +150,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 icon: Icons.person_pin_outlined,
               ),
               const SizedBox(height: 16),
+              // Name row with overflow protection
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    flex: 2,
+                    flex: 3,
                     child: _buildInputField(
                       label: "Last Name",
                       controller: _lastNameController,
                       icon: Icons.badge_outlined,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 1,
-                    child: _buildInputField(
-                      label: "Suffix",
-                      controller: _suffixController,
-                      icon: Icons.more_horiz_rounded,
-                    ),
-                  ),
+                  const SizedBox(width: 10),
+                  Expanded(flex: 2, child: _buildSuffixDropdown()),
                 ],
               ),
               const SizedBox(height: 32),
@@ -156,11 +186,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      Navigator.pop(context);
-                    }
-                  },
+                  onPressed: _handleSave,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBlue,
                     foregroundColor: Colors.white,
@@ -184,16 +210,73 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _buildSectionLabel(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 16, left: 2),
       child: Text(
         title,
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w800,
-          color: AppColors.textGrey.withValues(alpha: 0.7),
+          color: AppColors.textGrey.withOpacity(0.7),
           letterSpacing: 1.5,
         ),
       ),
+    );
+  }
+
+  Widget _buildSuffixDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Suffix",
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.darkNavy,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: _selectedSuffix,
+          isExpanded: true, // Prevents horizontal overflow
+          items: _suffixes.map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(
+                value.isEmpty ? 'None' : value,
+                style: const TextStyle(fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: (newValue) {
+            setState(() {
+              _selectedSuffix = newValue!;
+            });
+          },
+          decoration: InputDecoration(
+            prefixIcon: const Icon(
+              Icons.more_horiz_rounded,
+              size: 16,
+              color: AppColors.primaryBlue,
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.black.withOpacity(0.1)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.black.withOpacity(0.05)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -228,24 +311,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           decoration: InputDecoration(
             prefixIcon: Icon(icon, size: 18, color: AppColors.primaryBlue),
             filled: true,
-            fillColor: enabled
-                ? Colors.white
-                : Colors.grey.withValues(alpha: 0.05),
+            fillColor: enabled ? Colors.white : Colors.grey.withOpacity(0.05),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 16,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.black.withValues(alpha: 0.1),
-              ),
+              borderSide: BorderSide(color: Colors.black.withOpacity(0.1)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.black.withValues(alpha: 0.05),
-              ),
+              borderSide: BorderSide(color: Colors.black.withOpacity(0.05)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

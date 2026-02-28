@@ -13,12 +13,46 @@ class SyncService {
         'google.com',
       ).timeout(const Duration(seconds: 5));
       if (result.isEmpty || result[0].rawAddress.isEmpty) return;
+
       final db = await _localDb.database;
       await _syncTrips(db);
       await _syncReports(db);
       await _syncDeletedReports(db);
+      await _syncProfileChanges(db);
     } catch (e) {
       debugPrint("Sync error: $e");
+    }
+  }
+
+  Future<void> _syncProfileChanges(db) async {
+    final currentUser = _supabase.auth.currentUser;
+    if (currentUser == null) return;
+
+    final List<Map<String, dynamic>> unsynced = await db.query(
+      'users',
+      where: 'id = ? AND is_synced = ?',
+      whereArgs: [currentUser.id, 0],
+    );
+
+    if (unsynced.isEmpty) return;
+    final userData = unsynced.first;
+
+    try {
+      await _supabase.from('profiles').upsert({
+        'id': userData['id'],
+        'full_name': userData['full_name'],
+        'phone_number': userData['phone_number'],
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      await db.update(
+        'users',
+        {'is_synced': 1},
+        where: 'id = ?',
+        whereArgs: [userData['id']],
+      );
+    } catch (e) {
+      debugPrint("Profile sync error: $e");
     }
   }
 
@@ -28,25 +62,8 @@ class SyncService {
       where: 'is_synced = ?',
       whereArgs: [0],
     );
-
     final currentUser = _supabase.auth.currentUser;
     if (currentUser == null) return;
-
-    try {
-      await _supabase.rpc(
-        'handle_sync_profile',
-        params: {'p_id': currentUser.id, 'p_email': currentUser.email},
-      );
-    } catch (e) {
-      try {
-        await _supabase.from('profiles').upsert({
-          'id': currentUser.id,
-          'email': currentUser.email,
-        }, onConflict: 'id');
-      } catch (e2) {
-        debugPrint("Manual upsert failed: $e2");
-      }
-    }
 
     for (var data in unsynced) {
       try {
@@ -63,16 +80,13 @@ class SyncService {
           'created_at': data['date'],
           'status': 'completed',
         }, onConflict: 'uuid');
-
         await db.update(
           'trips',
           {'is_synced': 1},
           where: 'uuid = ?',
           whereArgs: [data['uuid']],
         );
-      } catch (e) {
-        debugPrint("Trip sync error: $e");
-      }
+      } catch (e) {}
     }
   }
 
@@ -82,7 +96,6 @@ class SyncService {
       where: 'is_synced = ? AND is_deleted = ?',
       whereArgs: [0, 0],
     );
-
     final currentUser = _supabase.auth.currentUser;
     if (currentUser == null) return;
 
@@ -93,7 +106,6 @@ class SyncService {
             .select('id')
             .eq('uuid', data['trip_uuid'])
             .maybeSingle();
-
         if (tripData == null) continue;
 
         await _supabase.from('reports').upsert({
@@ -113,9 +125,7 @@ class SyncService {
           where: 'id = ?',
           whereArgs: [data['id']],
         );
-      } catch (e) {
-        debugPrint("Report sync error: $e");
-      }
+      } catch (e) {}
     }
   }
 
@@ -125,7 +135,6 @@ class SyncService {
       where: 'is_deleted = ?',
       whereArgs: [1],
     );
-
     for (var data in deletedReports) {
       try {
         await _supabase
@@ -133,9 +142,7 @@ class SyncService {
             .delete()
             .eq('trip_uuid', data['trip_uuid']);
         await _localDb.deleteReportPermanently(data['id']);
-      } catch (e) {
-        continue;
-      }
+      } catch (e) {}
     }
   }
 }

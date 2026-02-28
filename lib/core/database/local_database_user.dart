@@ -1,10 +1,28 @@
 part of 'local_database.dart';
 
-// Placeholder for user-related queries - kept separate to avoid bloating the
-// main class. Additional methods for creating, fetching and updating users can
-// be added here as the application grows.
+extension UserDatabase on LocalDatabase {
+  Future<void> updateUserProfile({
+    required String id,
+    required String name,
+    required String phone,
+  }) async {
+    final db = await database;
+    await db.update(
+      'users',
+      {'full_name': name, 'phone_number': phone, 'is_synced': 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 
-// Example extension (currently empty):
-// extension UserDatabase on LocalDatabase {
-//   Future<void> saveUser(...) async { ... }
-// }
+  Future<Map<String, dynamic>?> getUserById(String id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (maps.isEmpty) return null;
+    return maps.first;
+  }
+}
