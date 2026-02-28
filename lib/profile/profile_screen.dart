@@ -10,6 +10,7 @@ import 'widgets/profile_menu_item.dart';
 import 'edit_profile_screen.dart';
 import 'guide_screen.dart';
 import 'legal_screen.dart';
+import 'set_pin_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String email;
@@ -129,22 +130,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 32),
                       _buildSectionLabel("ACCOUNT OVERVIEW"),
                       _buildContentCard(
-                        child: ProfileMenuItem(
-                          icon: Icons.person_outline_rounded,
-                          title: 'Edit Profile',
-                          onTap: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => EditProfileScreen(
-                                  initialName: _userName ?? "",
-                                  initialEmail: widget.email,
-                                  initialPhone: _userPhone ?? "",
-                                ),
-                              ),
-                            );
-                            if (result == true) _fetchUserData();
-                          },
+                        child: Column(
+                          children: [
+                            ProfileMenuItem(
+                              icon: Icons.person_outline_rounded,
+                              title: 'Edit Profile',
+                              onTap: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => EditProfileScreen(
+                                      initialName: _userName ?? "",
+                                      initialEmail: widget.email,
+                                      initialPhone: _userPhone ?? "",
+                                    ),
+                                  ),
+                                );
+                                if (result == true) _fetchUserData();
+                              },
+                            ),
+                            _buildDivider(),
+                            ProfileMenuItem(
+                              icon: Icons.lock_outline_rounded,
+                              title: 'Login PIN',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const SetPinScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 24),

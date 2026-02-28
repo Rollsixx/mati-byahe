@@ -20,6 +20,16 @@ extension UserDatabase on LocalDatabase {
     );
   }
 
+  Future<void> updateLocalPin(String id, String pin) async {
+    final db = await database;
+    await db.update(
+      'users',
+      {'login_pin': pin, 'is_synced': 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<Map<String, dynamic>?> getUserById(String id) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(

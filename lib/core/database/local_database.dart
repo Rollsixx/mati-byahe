@@ -1,5 +1,3 @@
-library local_database;
-
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:uuid/uuid.dart';
@@ -21,9 +19,10 @@ class LocalDatabase {
   Future<Database> _initDB() async {
     String dbPath = await getDatabasesPath();
     String pathName = join(dbPath, 'byahe.db');
+
     return await openDatabase(
       pathName,
-      version: 23,
+      version: 24,
       onCreate: (db, version) async => await _createTables(db),
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 21) {
@@ -46,6 +45,11 @@ class LocalDatabase {
             );
           } catch (e) {}
         }
+        if (oldVersion < 24) {
+          try {
+            await db.execute('ALTER TABLE users ADD COLUMN login_pin TEXT');
+          } catch (e) {}
+        }
       },
     );
   }
@@ -59,6 +63,7 @@ class LocalDatabase {
         full_name TEXT,
         phone_number TEXT,
         role TEXT,
+        login_pin TEXT,
         last_profile_update TEXT,
         is_verified INTEGER DEFAULT 0,
         is_synced INTEGER DEFAULT 1

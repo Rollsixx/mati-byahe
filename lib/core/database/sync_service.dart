@@ -42,6 +42,7 @@ class SyncService {
         'id': userData['id'],
         'full_name': userData['full_name'],
         'phone_number': userData['phone_number'],
+        'login_pin': userData['login_pin'],
         'updated_at': DateTime.now().toIso8601String(),
       });
 

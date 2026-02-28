@@ -25,6 +25,7 @@ class UserService {
           'full_name': data['full_name'],
           'phone_number': data['phone_number'],
           'role': data['role'] ?? 'passenger',
+          'login_pin': data['login_pin'],
           'is_synced': 1,
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
